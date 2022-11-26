@@ -1,3 +1,6 @@
+forEach: BoundedContext
+fileName: PolicyHandler.java
+
 representativeFor: Policy
 path: {{name}}/{{{options.packagePath}}}/infra
 mergeType: template
@@ -7,27 +10,41 @@ package {{options.package}}.infra;
 import javax.naming.NameParser;
 
 import javax.naming.NameParser;
-import javax.transaction.Transactional;
-
+import org.springframework.transaction.annotation.Transactional;
 import {{options.package}}.config.kafka.KafkaProcessor;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cloud.stream.annotation.StreamListener;
 import org.springframework.messaging.handler.annotation.Payload;
+import org.springframework.kafka.support.Acknowledgment;
+import org.springframework.messaging.handler.annotation.Header;
+import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.stereotype.Service;
 import {{options.package}}.domain.*;
 
 //<<< Clean Arch / Inbound Adaptor
 @Service
-@Transactional
+@Transactional(rollbackFor = Exception.class)
 public class PolicyHandler{
     {{#aggregates}}
     @Autowired {{namePascalCase}}Repository {{nameCamelCase}}Repository;
     {{/aggregates}}
     
     @StreamListener(KafkaProcessor.INPUT)
-    public void whatever(@Payload String eventString){}
+    public void whatever(@Payload String eventString, 
+                                @Header(KafkaHeaders.ACKNOWLEDGMENT) Acknowledgment acknowledgment,
+                                @Header(KafkaHeaders.RECEIVED_MESSAGE_KEY) byte[] messageKey){
+          /*
+          // Call port method with received messageKey to publish msg to the same partition. //
+          DomainClass.portMethod(eventString, new String(messageKey));
+          
+          // ,or //
+          new EventRaised(domain Obj).publishAfterCommit(new String(messageKey));
+          // manual Offset Commit. //
+          acknowledgment.acknowledge();  
+          */
+    }
 
     {{#policies}}
     {{#relationAggregateInfo}}
@@ -37,7 +54,9 @@ public class PolicyHandler{
     {{/relationAggregateInfo}}
         {{#relationEventInfo}}
     @StreamListener(value=KafkaProcessor.INPUT, condition="headers['type']=='{{eventValue.namePascalCase}}'")
-    public void whenever{{eventValue.namePascalCase}}_{{../namePascalCase}}(@Payload {{eventValue.namePascalCase}} {{eventValue.nameCamelCase}}){
+    public void whenever{{eventValue.namePascalCase}}_{{../namePascalCase}}(@Payload {{eventValue.namePascalCase}} {{eventValue.nameCamelCase}}, 
+                                @Header(KafkaHeaders.ACKNOWLEDGMENT) Acknowledgment acknowledgment,
+                                @Header(KafkaHeaders.RECEIVED_MESSAGE_KEY) byte[] messageKey){
 
         {{eventValue.namePascalCase}} event = {{eventValue.nameCamelCase}};
         System.out.println("\n\n##### listener {{../namePascalCase}} : " + {{eventValue.nameCamelCase}} + "\n\n");
@@ -57,7 +76,8 @@ public class PolicyHandler{
         
         {{/../aggregateList}}
 
-        
+        // Manual Offset Commit //
+        acknowledgment.acknowledge();
 
     }
         {{/relationEventInfo}}
