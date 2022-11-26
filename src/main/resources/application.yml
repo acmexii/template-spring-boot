@@ -1,3 +1,7 @@
+forEach: BoundedContext
+fileName: application.yml
+path: {{name}}/src/main/resources
+---
 server:
   port: 8080
 {{#circuitBreaker}}
@@ -22,11 +26,31 @@ spring:
       hibernate:
         show_sql: true
         format_sql: true
+  kafka:
+    producer:
+      retries: 5
+      acks: all
+      properties:
+        enable:
+          idempotence: true   # Set Producer exactly once Trx
+    consumer:
+      properties:
+        spring.json.trusted.packages: "*"
+        isolation.level: read_committed         
   cloud:
     stream:
       kafka:
         binder:
           brokers: localhost:9092
+          transaction:
+            transactionIdPrefix: tx-${random.uuid}   
+        bindings:
+          event-in:
+            consumer:
+              autoCommitOffset: false    # Disable Offset auto commit
+              enableDlq: true
+              dlqName: dlq-{{options.package}}
+              dlqPartitions: 1         
         streams:
           binder:
             configuration:
@@ -69,11 +93,31 @@ server:
 ---
 spring:
   profiles: docker
+  kafka:
+    producer:
+      retries: 5
+      acks: all
+      properties:
+        enable:
+          idempotence: true   # Set Producer exactly once Trx
+    consumer:
+      properties:
+        spring.json.trusted.packages: "*"
+        isolation.level: read_committed    
   cloud:
     stream:
       kafka:
         binder:
           brokers: my-kafka:9092
+          transaction:
+            transactionIdPrefix: tx-${random.uuid}   
+        bindings:
+          event-in:
+            consumer:
+              autoCommitOffset: false    # Disable Offset auto commit
+              enableDlq: true
+              dlqName: dlq-{{options.package}}
+              dlqPartitions: 1              
         streams:
           binder:
             configuration:
