@@ -1,3 +1,6 @@
+forEach: BoundedContext
+fileName: AbstractEvent.java
+
 path: {{name}}/{{{options.packagePath}}}/infra
 ---
 package {{options.package}}.infra;
@@ -11,6 +14,7 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHeaders;
 import org.springframework.messaging.support.MessageBuilder;
+import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.transaction.support.TransactionSynchronizationAdapter;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.MimeTypeUtils;
@@ -50,6 +54,10 @@ public class AbstractEvent {
                 .setHeader(
                     "type",
                     getEventType()
+                )
+                .setHeader(
+                    // modify MESSAGE_KEY value with an appropriate it later.
+                    KafkaHeaders.MESSAGE_KEY, new String("MsgKey-" + Math.floor(Math.random() * 10)).getBytes() 
                 )
                 .build()
         );
